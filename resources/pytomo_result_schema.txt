@@ -1,0 +1,28 @@
+# video url
+# cache url
+## current stats (dict):
+# ip_address (key)
+    ## value (list):
+        # timestamp
+        # ping_times (list)
+        ## download_stats (list):
+            # download_time,
+            # video_type,
+            # data_duration,
+            # data_len,
+            # encoding_rate,
+            # get_total_bytes(),
+            # interruptions,
+            # initial_data,
+            # initial_rate,
+            # initial_playback_buffer,
+            # accumulated_buffer,
+            # accumulated_playback,
+            # current_buffer,
+            # time_to_get_first_byte,
+            # max_instant_thp,
+        # redirect_url
+        # resolver
+        # req_time
+        # cached_prefix
+        # status code
