@@ -1,0 +1,18 @@
+import csv
+
+if __name__ == '__main__':
+
+    traceroutes = [
+        # "rosources/74.125.173.134.csv",
+        "rosources/74.125.173.234.csv",
+        "rosources/173.194.151.235.csv"
+    ]
+
+    for t in traceroutes:
+
+        with open(t, 'rb') as csvfile:
+
+            spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+
+            for row in spamreader:
+                print(', ').join(row)

@@ -111,10 +111,11 @@ def get_latencies(data):
     for result in data:
         general_stats = result['general_stats']
         for k, v in general_stats.items():
+            ip_adress = general_stats['ip_address']
             if not k == 'ping_times':
                 continue
 
-            ip_adress = general_stats['ip_address']
+            print(ip_adress)
             latencies[ip_adress] = v[1]  # avg latency
 
     return latencies
