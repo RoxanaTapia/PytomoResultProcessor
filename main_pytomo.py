@@ -1,7 +1,6 @@
 import datetime
 import re
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 def get_results(results):
@@ -98,11 +97,11 @@ def plot_latencies(ip_addresses, values):
     plt.xticks(range(len(ip_addresses)), ip_addresses, rotation=90)
     fig.suptitle('Latency by video IP address')
     plt.xlabel('Video IP address')
-    plt.ylabel('Ping average (msec)')
+    plt.ylabel('Ping average (ms)')
     plt.plot(ip_addresses, values)
     plt.subplot_tool()
 
-    fig.savefig('resources/latency.png')
+    fig.savefig('resources/plots/latency_pytomo.png')
     plt.close(fig)
 
 

@@ -1,18 +1,98 @@
 import csv
+from collections import OrderedDict
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def get_route(row):
+    route = OrderedDict(
+        id=row[0],
+        country=row[1].lstrip(),
+        town=row[2].lstrip(),
+        lat=row[3],
+        lon=row[4],
+        ip=row[5],
+        hostname=row[6],
+        latency=int(row[7].lstrip()),  # ms
+        dns_lookup=row[8],  # ms
+        distance_to_previous_node=int(row[9].lstrip()),  # km
+    )
+    return route
+
+
+def get_latencies(trace_route):
+    latencies = OrderedDict()
+
+    for route in trace_route:
+
+        key = (route["country"], route['town'])
+        if key not in latencies.keys():
+            latencies[key] = dict(latency=0, size=0, avg=0)
+
+    for route in trace_route:
+        key = (route["country"], route['town'])
+        current_latency = latencies[key]['latency']
+        new_latency = route['latency'] + current_latency
+        latencies[key]['latency'] = new_latency
+
+        current_size = latencies[key]['size']
+        new_size = 1 + current_size
+        latencies[key]['size'] = new_size
+
+        latencies[key]['avg'] = round(new_latency/new_size, 2)
+
+    return latencies
+
+
+def plot_latencies(video_ip, locs, latencies):
+    np.random.seed(19680801)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+
+    plt.subplots_adjust(wspace=0.6, hspace=0.6, left=0.1, bottom=0.35, right=0.96, top=0.90)
+    plt.xticks(range(len(locs)), locs, rotation=90)
+    fig.suptitle('Latency for video IP: {video_ip}'.format(video_ip=video_ip))
+    plt.xlabel('Trace Route Server Location')
+    plt.ylabel('Latency average (ms)')
+    plt.plot(locs, latencies)
+    for xy in zip(locs, latencies):  # <--
+        ax.annotate('%s' % xy[1], xy=xy, textcoords='data', color='red')
+    plt.subplot_tool()
+
+    fig.savefig('resources/plots/latencies_trace_route_{video_ip}.png'.format(video_ip=video_ip))
+    plt.close(fig)
 
 if __name__ == '__main__':
 
     traceroutes = [
         # "rosources/74.125.173.134.csv",
-        "rosources/74.125.173.234.csv",
-        "rosources/173.194.151.235.csv"
+        "resources/74.125.173.234.csv",
+        "resources/173.194.151.235.csv"
     ]
 
+    data = dict()
+
     for t in traceroutes:
+        ip_address = t[10:][:-4]
+        with open(t, 'rt') as csvfile:
 
-        with open(t, 'rb') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            routes = list()
+            for row in reader:
+                route = get_route(row)
+                routes.append(route)
+        data[ip_address] = routes
 
-            spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+    for ip, tr in data.items():  # video ip
+        latencies = get_latencies(tr)
 
-            for row in spamreader:
-                print(', ').join(row)
+        latencies_summary = list()
+
+        for loc, stats in latencies.items():
+
+            loc_name = "{town}\n({country})".format(town=loc[1], country=loc[0])
+            latencies_summary.append((loc_name, stats["avg"]))
+
+        locs = [l[0] for l in latencies_summary]
+        latencies = [l[1] for l in latencies_summary]
+        plot_latencies(video_ip=ip, locs=locs, latencies=latencies)
