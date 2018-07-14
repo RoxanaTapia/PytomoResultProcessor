@@ -1,5 +1,7 @@
 import datetime
 import re
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def get_results(results):
@@ -33,7 +35,6 @@ def is_valid(object):
                 if download_stats and len(download_stats) == 15:
                     return True
     return False
-
 
 def get_dict_item(result):
     """
@@ -90,7 +91,39 @@ def get_dict_item(result):
     return dict_item
 
 
+def plot_latencies(ip_addresses, values):
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    plt.subplots_adjust(wspace=0.6, hspace=0.6, left=0.1, bottom=0.35, right=0.96, top=0.90)
+    plt.xticks(range(len(ip_addresses)), ip_addresses, rotation=90)
+    fig.suptitle('Latency by video IP address')
+    plt.xlabel('Video IP address')
+    plt.ylabel('Ping average (msec)')
+    plt.plot(ip_addresses, values)
+    plt.subplot_tool()
+
+    fig.savefig('resources/latency.png')
+    plt.close(fig)
+
+
+def get_latencies(data):
+    latencies = dict()
+    for result in data:
+        general_stats = result['general_stats']
+        for k, v in general_stats.items():
+            if not k == 'ping_times':
+                continue
+
+            ip_adress = general_stats['ip_address']
+            latencies[ip_adress] = v[1]  # avg latency
+
+    return latencies
+
 if __name__ == '__main__':
+    """
+    Script for data extraction from pytomo results.
+    data: list of dicts (pytomo results)
+    """
 
     filename = "resources/test.txt"
     filename = "resources/pytomo_results_1.txt"
@@ -106,5 +139,6 @@ if __name__ == '__main__':
     print("Results available: {number}".format(number=len(results)))
     print("Valid results processed: {number}".format(number=len(data)))
 
-
+    latencies = get_latencies(data)
+    plot_latencies(ip_addresses=latencies.keys(), values=latencies.values())
 
