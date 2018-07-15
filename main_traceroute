@@ -1,7 +1,9 @@
 import csv
 from collections import OrderedDict
+from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 
 def get_route(row):
@@ -9,10 +11,10 @@ def get_route(row):
         id=row[0],
         country=row[1].lstrip(),
         town=row[2].lstrip(),
-        lat=row[3],
-        lon=row[4],
-        ip=row[5],
-        hostname=row[6],
+        lat=round(float(row[3].lstrip()), 2),
+        lon=round(float(row[4].lstrip()), 2),
+        ip=row[5].lstrip(),
+        hostname=row[6].lstrip(),
         latency=int(row[7].lstrip()),  # ms
         dns_lookup=row[8],  # ms
         distance_to_previous_node=int(row[9].lstrip()),  # km
@@ -27,7 +29,7 @@ def get_latencies(trace_route):
 
         key = (route["country"], route['town'])
         if key not in latencies.keys():
-            latencies[key] = dict(latency=0, size=0, avg=0)
+            latencies[key] = dict(latency=0, size=0, avg=0, latitude=route["lat"], longitude=route["lon"])
 
     for route in trace_route:
         key = (route["country"], route['town'])
@@ -44,19 +46,137 @@ def get_latencies(trace_route):
     return latencies
 
 
+def get_locations(trace_route, ip):
+
+    current_location = (trace_route[0]["lat"], trace_route[0]["lon"])
+    current_latency = trace_route[0]["latency"]
+    country = trace_route[0]["country"]
+    town = trace_route[0]["town"]
+    trace_route.pop(0)
+
+    locations = dict()
+
+    locations[0] = dict(
+        country=country,
+        town=town,
+        location=current_location,
+        latencies=[current_latency]
+    )
+    key = 0
+    for r in trace_route:
+
+        location = (r["lat"], r["lon"])
+        latency = r["latency"]
+
+        country = r["country"]
+        town = r["town"]
+
+        if location == current_location:
+            locations[key]["latencies"].append(latency)
+        else:
+            key = key+1
+            locations[key] = dict(
+                country=country,
+                town=town,
+                location=location,
+                latencies=[latency]
+            )
+        current_location = location
+
+    # return locations
+    locs = list()
+    latencies = list()
+
+    for key, info in locations.items():
+        loc_name = "{town}\n({country})".format(town=info['town'], country=info['country'])
+        locs.append(loc_name)
+        latency = round(sum(info['latencies'])/len(info['latencies']), 2)
+        latencies.append(latency)
+
+    plot_latencies(video_ip=ip, locs=locs, latencies=latencies)
+
+    locations = list()
+
+
+    # plots = list()
+    #
+    # for i in range(len(locations)):
+    #     if i + 1 < len(locations):
+    #         current_location = locations[i]['location']
+    #         next_location = locations[i+1]['location']
+    #         current_avg = round(sum(locations[i]['latencies'])/len(locations[i]['latencies']), 2)
+    #         new_avg = round(sum(locations[i+1]['latencies'])/len(locations[i+1]['latencies']), 2)
+    #
+    #         if current_latency >= new_avg:  # latency decrease
+    #             delta_avg = round((current_avg - new_avg) * -1, 2)
+    #         else:  # latency increase
+    #             delta_avg = round(new_avg - current_avg, 2)
+    #
+    #         plots.append((current_location, next_location, delta_avg,))
+
+    # plot_latencies(plots, ip)
+
+
+# def plot_locations(plot_locations, ip):
+#
+#     fig = plt.figure(figsize=(20, 10))
+#     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+#     map_id=0
+#     for location in plot_locations:
+#         m = Basemap(projection='merc', llcrnrlat=-80, urcrnrlat=80, llcrnrlon=-180, urcrnrlon=180, lat_ts=20, resolution='c')
+#
+#         current_location = location[0]
+#         next_location = location[1]
+#
+#         nylat = current_location[0]
+#         nylon = current_location[1]
+#         # lonlat, lonlon are lat/lon of London.
+#         lonlat = next_location[0]
+#         lonlon = next_location[1]
+#
+#         gcline, =  m.drawgreatcircle(nylon, nylat, lonlon, lonlat, linewidth=2, color='b')
+#         path = gcline.get_path()
+#         head = m(lonlon, lonlat)
+#         tail = path.vertices[int(-len(path) / 6)]
+#
+#         ax.annotate("{} ms)".format(location[2]),
+#                     xy=(head[0], head[1]),
+#                     xycoords='data',
+#                     xytext=(tail[0], tail[1]),
+#                     textcoords='data',
+#                     size=10)
+#
+#         m.drawcoastlines()
+#         m.fillcontinents()
+#         # draw parallels
+#         m.drawparallels(np.arange(10, 90, 20), labels=[1, 1, 0, 1])
+#         # draw meridians
+#         m.drawmeridians(np.arange(-180, 180, 30), labels=[1, 1, 0, 1])
+#
+#         ax.set_title('Trace Route Latency for Video IP: {ip}'.format(ip=ip))
+#
+#         fig.savefig('resources/plots/latencies_map_{video_ip}/{map_id}.png'.format(video_ip=ip, map_id=map_id))
+#         map_id += 1
+#         plt.close(fig)
+
+
 def plot_latencies(video_ip, locs, latencies):
     np.random.seed(19680801)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    plt.subplots_adjust(wspace=0.6, hspace=0.6, left=0.1, bottom=0.35, right=0.96, top=0.90)
+    plt.subplots_adjust(left=0.13, bottom=0.36, right=0.93, top=0.85)
     plt.xticks(range(len(locs)), locs, rotation=90)
     fig.suptitle('Latency for video IP: {video_ip}'.format(video_ip=video_ip))
     plt.xlabel('Trace Route Server Location')
     plt.ylabel('Latency average (ms)')
+    # plt.scatter(locs, latencies)
     plt.plot(locs, latencies)
-    for xy in zip(locs, latencies):  # <--
-        ax.annotate('%s' % xy[1], xy=xy, textcoords='data', color='red')
+    for xy in zip(locs, latencies):
+        distance = xy[1]-5
+        if distance < 3:
+            distance = xy[1]+5
+        ax.annotate('{}'.format(xy[1]), xy=xy, xytext=(xy[0], distance), textcoords='data', color='red')
     plt.subplot_tool()
 
     fig.savefig('resources/plots/latencies_trace_route_{video_ip}.png'.format(video_ip=video_ip))
@@ -64,19 +184,17 @@ def plot_latencies(video_ip, locs, latencies):
 
 if __name__ == '__main__':
 
-    traceroutes = [
-        # "rosources/74.125.173.134.csv",
-        "resources/74.125.173.234.csv",
-        "resources/173.194.151.235.csv"
-    ]
+    traceroutes = os.listdir("resources/traceroutes")
 
     data = dict()
 
     for t in traceroutes:
-        ip_address = t[10:][:-4]
-        with open(t, 'rt') as csvfile:
+        ip_address = t[:-4]
 
-            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        with open('resources/traceroutes/'+t, 'rt') as csvfile:
+
+            reader = list(csv.reader(csvfile, delimiter=',', quotechar='|'))
+            reader.pop(0)
             routes = list()
             for row in reader:
                 route = get_route(row)
@@ -85,13 +203,19 @@ if __name__ == '__main__':
 
     for ip, tr in data.items():  # video ip
         latencies = get_latencies(tr)
+        # get_locations(tr, ip)
 
         latencies_summary = list()
 
-        for loc, stats in latencies.items():
+        locations = list()
+
+        for loc, info in latencies.items():
 
             loc_name = "{town}\n({country})".format(town=loc[1], country=loc[0])
-            latencies_summary.append((loc_name, stats["avg"]))
+            current_location = (info["latitude"], info["longitude"], info["avg"])
+            locations.append(current_location)
+
+            latencies_summary.append((loc_name, info["avg"]))
 
         locs = [l[0] for l in latencies_summary]
         latencies = [l[1] for l in latencies_summary]
